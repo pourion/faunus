@@ -179,22 +179,29 @@ spc.geo.getBoundaryFunc()); #endif
  * @brief Translate and rotate a molecular group
  */
 class TranslateRotate : public Movebase {
-  protected:
-    typedef typename Space::Tpvec Tpvec;
+  private:
     Space &spc; // Space to operate on
     int molid = -1;
-    double dptrans = 0;
-    double dprot = 0;
-    Point dir = {1, 1, 1};
-    Point dirrot = {0, 0, 0}; // predefined axis of rotation
-    double _sqd;          // squared displacement
-    Average<double> msqd; // mean squared displacement
+    Average<double> mean_squared_displacement;
+    Average<double> mean_squared_rotation;
+
+    double latest_displacement_squared = 0.0;
+    double latest_rotation_angle_squared = 0.0;
+    double translational_displacement = 0.0;   //!< User defined displacement parameter
+    double rotational_displacement = 0.0;      //!< User defined rotational displacement parameter
+    Point translational_direction = {1, 1, 1}; //!< User defined directions
+    Point fixed_rotation_axis = {0, 0, 0};     //!< Axis of rotation. 0,0,0 == random.
+
+    std::optional<std::reference_wrapper<Space::Tgroup>> findRandomMolecule() const;
+    void translateMolecule(Space::Tgroup &group);
+    void rotateMolecule(Space::Tgroup &group);
+    void sanityCheck(const Space::Tgroup &group) const; // sanity check of move
 
     void _to_json(json &j) const override;
-    void _from_json(const json &j) override; //!< Configure via json object
+    void _from_json(const json &j) override;
     void _move(Change &change) override;
-    void _accept(Change &) override { msqd += _sqd; }
-    void _reject(Change &) override { msqd += 0; }
+    void _accept(Change &) override;
+    void _reject(Change &) override;
 
   public:
     TranslateRotate(Space &spc);
