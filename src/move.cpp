@@ -886,13 +886,12 @@ void TranslateRotate::_to_json(json &j) const {
          {"molid", molid},
          {u8::rootof + u8::bracket("r" + u8::squared), std::sqrt(mean_squared_displacement.avg())},
          {"√⟨θ²⟩/°", std::sqrt(mean_squared_rotation.avg()) / 1.0_deg},
-         {"molecule", molecules[molid].name}};
+         {"molecule", Faunus::molecules[molid].name}};
     _roundjson(j, 3);
 }
 void TranslateRotate::_from_json(const json &j) {
-    assert(!molecules.empty());
     try {
-        auto molname = j.at("molecule").get<std::string>();
+        const auto molname = j.at("molecule").get<std::string>();
         if (auto it = Faunus::findName(Faunus::molecules, molname); it == Faunus::molecules.end()) {
             throw ConfigurationError("unknown molecule '{}'", molname);
         } else if (it->atomic) {
@@ -904,8 +903,13 @@ void TranslateRotate::_from_json(const json &j) {
             fixed_rotation_axis = j.value("dirrot", Point(0, 0, 0)); // predefined axis of rotation
             translational_displacement = j.at("dp").get<double>();
             if (repeat < 0) {
-                auto mollist = spc.findMolecules(molid);
-                repeat = std::distance(mollist.begin(), mollist.end());
+                repeat = spc.numMolecules<Space::Tgroup::ACTIVE>(molid);
+                if (repeat == 0) {
+                    faunus_logger->warn("no initial '{}' molecules found; setting repeat to 1", molname);
+                    repeat = 1;
+                } else {
+                    faunus_logger->debug("repeat = {} for molecule '{}'", repeat, molname);
+                }
             }
         }
     } catch (std::exception &e) {
